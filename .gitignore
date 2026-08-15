@@ -1,0 +1,10 @@
+# Dataset
+data/
+*.csv
+
+# TensorBoard logs
+logs/
+
+/.vscode
+/__pycache__
+/altro
