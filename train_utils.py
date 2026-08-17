@@ -5,13 +5,13 @@ from sklearn.metrics import accuracy_score
 import torch
 import datetime
 
-def train_model(model, train_loader, test_loader, name_model, epochs=100, lr=0.01):
+def train_model(model, train_loader, test_loader, name_model, epochs=100, lr=0.01,weight_decay=0.0):
     
     # Definiamo la loss function stabile applicata direttamente ai logit
     criterion = torch.nn.BCEWithLogitsLoss()
     
     # Definiamo l'ottimizzatore (Stochastic Gradient Descent)[cite: 5]
-    optimizer = SGD(model.parameters(), lr=lr)
+    optimizer = SGD(model.parameters(), lr=lr, weight_decay= weight_decay)
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     # Inizializziamo TensorBoard per tracciare le metriche
