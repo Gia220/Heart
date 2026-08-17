@@ -9,7 +9,7 @@ from RegressioneLineare import LogisticRegressor
 if __name__ == "__main__":
 
     # 1. Carichiamo i dati con la nostra classe originale intatta
-    dataset = HeartDiseaseDataset("data/heart.csv")
+    dataset = HeartDiseaseDataset("data/heart_johnsmith88_mod.csv")
 
     # 2. Estraiamo feature e target per manipolarli nel notebook
     X_raw = dataset.X.numpy()
@@ -43,6 +43,7 @@ if __name__ == "__main__":
 
 
     # --- PRIMO RUN: Senza Weight Decay ---
+  
     print("\n--- Addestramento Modello Standard ---")
     poly_model_1 = LogisticRegressor(in_features=poly_dim)
     trained_poly_1 = train_model(poly_model_1, train_loader, test_loader, epochs=150, lr=0.01, name_model="Poly_Reg")
@@ -52,5 +53,6 @@ if __name__ == "__main__":
     print("\n--- Addestramento Modello Regolarizzato ---")
     # FONDAMENTALE: Creare una nuova istanza pulita!
     poly_model_2 = LogisticRegressor(in_features=poly_dim) 
-    trained_poly_2 = train_model(poly_model_2, train_loader, test_loader, epochs=150, lr=0.01, name_model="Poly_Reg_decay", weight_decay=1e-4)
-    evaluate_and_save(trained_poly_2, test_loader, model_name="Poly_Reg_decay")
+    trained_poly_2 = train_model(poly_model_2, train_loader, test_loader, epochs=150, lr=0.01, name_model="Poly_Reg_decay_5", weight_decay=1e-5)
+    evaluate_and_save(trained_poly_2, test_loader, model_name="Poly_Reg_decay_5")
+

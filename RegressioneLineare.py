@@ -28,7 +28,7 @@ class LogisticRegressor(nn.Module):
 
 if __name__ == "__main__":
     # Definiamo i parametri e carichiamo i dati
-    csv_path = "data/heart.csv"  # Assicurati che il path sia corretto
+    csv_path = "data/heart_johnsmith88_mod.csv"  # Assicurati che il path sia corretto
     dataset = HeartDiseaseDataset(csv_path)
 
     print(f"Dati caricati! Feature in ingresso: {dataset[0][0].shape[0]}")

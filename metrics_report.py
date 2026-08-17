@@ -6,23 +6,35 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 def evaluate_and_save(model, test_loader, model_name="Modello", results_file="results.csv"):
     """
     Valuta il modello sul test set, stampa il report e salva le metriche in un CSV.
+    Supporta sia modelli PyTorch che modelli Scikit-Learn.
     """
-    model.eval()
     all_preds = []
     all_targets = []
     
-    with torch.no_grad():
+    # 1. CONTROLLO TIPO DI MODELLO
+    if isinstance(model, torch.nn.Module):
+        # Percorso PyTorch (Regressione Logistica, MLP, ecc.)
+        model.eval()
+        with torch.no_grad():
+            for X_test, Y_test in test_loader:
+                outputs = model(X_test)
+                # Applichiamo la sigmoide e sogliamo a 0.5 per la classificazione binaria
+                probs = torch.sigmoid(outputs)
+                preds = (probs > 0.5).float()
+                
+                all_preds.extend(preds.numpy())
+                all_targets.extend(Y_test.numpy())
+                
+    else:
+        # Percorso Scikit-Learn (Random Forest, SVM classica, ecc.)
         for X_test, Y_test in test_loader:
-            outputs = model(X_test)
+            # I modelli di ML classico richiedono array NumPy e usano .predict()
+            preds = model.predict(X_test.numpy())
             
-            # Applichiamo la sigmoide e sogliamo a 0.5 per la classificazione binaria[cite: 3]
-            probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()
-            
-            all_preds.extend(preds.numpy())
+            all_preds.extend(preds)
             all_targets.extend(Y_test.numpy())
             
-    # Calcolo delle metriche[cite: 3]
+    # 2. CALCOLO DELLE METRICHE (comune a tutti i modelli)
     # zero_division=0 evita warning se il modello predice sempre la stessa classe
     acc = accuracy_score(all_targets, all_preds)
     prec = precision_score(all_targets, all_preds, zero_division=0)
@@ -30,7 +42,7 @@ def evaluate_and_save(model, test_loader, model_name="Modello", results_file="re
     f1 = f1_score(all_targets, all_preds, zero_division=0)
     cm = confusion_matrix(all_targets, all_preds)
     
-    # 1. Stampa del Report Testuale
+    # 3. STAMPA DEL REPORT TESTUALE
     print(f"\n--- Report: {model_name} ---")
     print(f"Accuracy:  {acc:.4f}")
     print(f"Precision: {prec:.4f}")
@@ -38,7 +50,7 @@ def evaluate_and_save(model, test_loader, model_name="Modello", results_file="re
     print(f"F1-Score:  {f1:.4f}")
     print(f"Matrice di Confusione:\n{cm}\n")
     
-    # 2. Salvataggio strutturato nel CSV
+    # 4. SALVATAGGIO STRUTTURATO NEL CSV
     new_data = pd.DataFrame({
         "Model": [model_name],
         "Accuracy": [acc],

@@ -41,7 +41,7 @@ class HeartDiseaseMLP(nn.Module):
 if __name__ == "__main__":
 
 # Definiamo i parametri e carichiamo i dati
-    csv_path = "data/heart.csv"  # Assicurati che il path sia corretto
+    csv_path = "data/heart_johnsmith88.csv"  # Assicurati che il path sia corretto
     dataset = HeartDiseaseDataset(csv_path)
 
     torch.manual_seed(42)
