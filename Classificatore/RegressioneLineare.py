@@ -2,11 +2,11 @@ from torch import nn
 import pandas as pd
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
-from train_utils import train_model
+from Classificatore.train_utils import train_model
 import torch
 from torch.utils.data import DataLoader, random_split
-from dataset import HeartDiseaseDataset
-from metrics_report import evaluate_and_save
+from Classificatore.dataset import HeartDiseaseDataset
+from Classificatore.metrics_report import evaluate_and_save
 
 class LogisticRegressor(nn.Module):
     def __init__(self, in_features):

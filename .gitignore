@@ -9,3 +9,6 @@ logs/
 /__pycache__
 /altro
 /heart+disease
+/saved_models
+*.pth
+*.csv

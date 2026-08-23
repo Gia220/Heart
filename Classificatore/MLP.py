@@ -2,9 +2,9 @@
 import torch.nn as nn
 import torch
 from torch.utils.data import DataLoader, random_split
-from dataset import HeartDiseaseDataset
-from train_utils import train_model
-from metrics_report import evaluate_and_save
+from Classificatore.dataset import HeartDiseaseDataset
+from Classificatore.train_utils import train_model
+from Classificatore.metrics_report import evaluate_and_save
 
 
 class HeartDiseaseMLP(nn.Module):

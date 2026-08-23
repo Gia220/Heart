@@ -6,10 +6,10 @@ from sklearn.metrics import classification_report, f1_score, accuracy_score
 import joblib  # Per salvare i modelli di scikit-learn
 import pandas as pd
 import os
-from metrics_report import evaluate_and_save
+from Classificatore.metrics_report import evaluate_and_save
 from torch.utils.data import DataLoader
 
-from dataset import HeartDiseaseDataset
+from Classificatore.dataset import HeartDiseaseDataset
 
 def extract_arrays_from_subset(subset):
     """

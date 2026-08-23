@@ -1,10 +1,10 @@
 import torch
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from dataset import HeartDiseaseDataset
-from train_utils import train_model
-from metrics_report import evaluate_and_save
-from RegressioneLineare import LogisticRegressor
+from Classificatore.dataset import HeartDiseaseDataset
+from Classificatore.train_utils import train_model
+from Classificatore.metrics_report import evaluate_and_save
+from Classificatore.RegressioneLineare import LogisticRegressor
 
 if __name__ == "__main__":
 
