@@ -5,12 +5,12 @@ from torch.utils.data import DataLoader, random_split
 from Classificatore.dataset import HeartDiseaseDataset
 from Classificatore.train_utils import train_model
 from Classificatore.metrics_report import evaluate_and_save
+import os
 
 
 class HeartDiseaseMLP(nn.Module):
     def __init__(self, in_features, hidden_1=64, hidden_2=32):
         """
-        Costruisce un classificatore MLP profondo.
         Input:
         in_features: numero di feature in input (13)
         hidden_1: unità nel primo livello nascosto
@@ -18,7 +18,7 @@ class HeartDiseaseMLP(nn.Module):
         """
         super(HeartDiseaseMLP, self).__init__()
         
-        # Definiamo la struttura in cascata
+        
         self.model = nn.Sequential(
             # Primo Hidden Layer
             nn.Linear(in_features, hidden_1),
@@ -35,16 +35,16 @@ class HeartDiseaseMLP(nn.Module):
         )
         
     def forward(self, x):
-        # Il dato attraversa in sequenza tutti i layer[cite: 4]
         return self.model(x)
 
 if __name__ == "__main__":
-
-# Definiamo i parametri e carichiamo i dati
-    csv_path = "data/heart_johnsmith88.csv"  # Assicurati che il path sia corretto
+    model_name = 'MLP'
+    # Definiamo i parametri e carichiamo i dati
+    csv_path = "data/heart_johnsmith88.csv"  
     dataset = HeartDiseaseDataset(csv_path)
 
     torch.manual_seed(42)
+
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
@@ -52,21 +52,19 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-    print(f"Dati caricati! Feature in ingresso: {dataset[0][0].shape[0]}")
-
-    model_name = 'MLP'
-
 
     input_dim = dataset[0][0].shape[0]
+    print(f"Dati caricati! Feature in ingresso: {input_dim}")
+
 
     print(f"Inizializzazione del MLP con {input_dim} feature in ingresso...")
-    # Istanziamo il nostro MLP
+
+    # Istanziamo il modello
     mlp_model = HeartDiseaseMLP(in_features=input_dim, hidden_1=64, hidden_2=32)
 
     print("Inizio dell'addestramento del MLP...")
 
-    # Richiamiamo la tua funzione aggiornata (assumendo che l'hai importata da train_utils)
-    # Sperimentiamo con un learning rate leggermente più basso e 150 epoche
+
     trained_mlp = train_model(
         model=mlp_model, 
         train_loader=train_loader, 
@@ -79,5 +77,12 @@ if __name__ == "__main__":
 
     print("Addestramento completato!")
 
-
+    #calcolo metriche e save
     evaluate_and_save(trained_mlp, test_loader, model_name=model_name)
+
+
+    #salvataggio pesi
+    os.makedirs('weight', exist_ok=True)
+    percorso_pesi = f'weight/{model_name}.pth'
+    torch.save(trained_mlp.state_dict(), percorso_pesi)
+    print(f"Pesi del modello salvati in: {percorso_pesi}")
