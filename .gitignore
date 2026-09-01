@@ -10,5 +10,8 @@ logs/
 /altro
 /heart+disease
 /saved_models
+/demo_immagini
 *.pth
 *.csv
+
+note.txt
