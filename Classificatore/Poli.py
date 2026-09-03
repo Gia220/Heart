@@ -48,13 +48,13 @@ def main():
     #PRIMO RUN: Senza Weight Decay
     print("\n--- Addestramento Modello Standard ---")
     poly_model_1 = LogisticRegressor(in_features=poly_dim)
-    trained_poly_1 = train_model(poly_model_1, train_loader, test_loader, epochs=150, lr=0.01, name_model="Poly_Reg")
+    trained_poly_1 = train_model(poly_model_1, train_loader, test_loader, epochs=250, lr=0.005, name_model="Poly_Reg")
     evaluate_and_save(trained_poly_1, test_loader, model_name="Poly_Reg")
     
     # Salvataggio pesi modello 1
     torch.save(trained_poly_1.state_dict(), 'weight/poly_regressor.pth')
     print("Pesi salvati in: weight/poly_regressor.pth")
-
+    """
     # SECONDO RUN: Con Weight Decay 
     print("\n--- Addestramento Modello Regolarizzato ---")
     poly_model_2 = LogisticRegressor(in_features=poly_dim) 
@@ -63,8 +63,7 @@ def main():
     
     # Salvataggio pesi modello 2
     torch.save(trained_poly_2.state_dict(), 'weight/poly_regressor_decay.pth')
-    print("Pesi salvati in: weight/poly_regressor_decay.pth")
-
+    print("Pesi salvati in: weight/poly_regressor_decay.pth")"""
     # SALVATAGGIO pesi 
     joblib.dump(poly, 'weight/poly_transform.pkl')
     joblib.dump(scaler, 'weight/poly_scaler.pkl')

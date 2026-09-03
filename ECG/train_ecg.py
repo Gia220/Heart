@@ -22,7 +22,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Hardware in uso: {device}")
 
-    # 1. Download tramite Kaggle API (Consentito dal firewall del DMI)
+    #Download tramite Kaggle API 
     print("Download dataset da 100k immagini in corso (Kaggle)...")
     base_path = kagglehub.dataset_download("mhasnain1806/ecg-images")
     
@@ -37,7 +37,7 @@ def main():
 
     print(f"Dati pronti in: {data_dir}")
 
-    # 2. Pipeline Dati
+    #  Pipeline Dati
     train_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.95, 1.05)),
@@ -66,7 +66,7 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
-    # 3. Inizializzazione Modello Binario
+    #  Inizializzazione Modello Binario
     resnet = models.resnet18(pretrained=True)
     for param in resnet.parameters():
         param.requires_grad = False
@@ -87,12 +87,12 @@ def main():
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2)
     writer = SummaryWriter(os.path.join(args.output_dir, 'logs'))
 
-    # 4. Training Loop
+    # Training Loop
     print("\nInizio addestramento sul Cluster...")
     for epoch in range(args.epochs):
         start_time = time.time()
         
-        # Train phase
+        # Train 
         resnet.train()
         running_loss, correct, total = 0.0, 0, 0
         for inputs, labels in train_loader:
@@ -111,7 +111,7 @@ def main():
         epoch_train_loss = running_loss / total
         epoch_train_acc = correct / total
 
-        # Test phase
+        # Test 
         resnet.eval()
         val_loss, correct_test, total_test = 0.0, 0, 0
         with torch.no_grad():
@@ -139,7 +139,7 @@ def main():
         end_time = time.time()
         print(f"Epoca [{epoch+1}/{args.epochs}] | Test Loss: {epoch_test_loss:.4f} | Test Acc: {epoch_test_acc:.4f} | LR: {current_lr} | Tempo: {end_time - start_time:.0f}s")
 
-    # 5. Salvataggio Pesi
+    # Salvataggio Pesi
     model_path = os.path.join(args.output_dir, 'resnet18_ecg_finetuned.pth')
     torch.save(resnet.state_dict(), model_path)
     print(f"\nAddestramento completato. Pesi salvati in: {model_path}")

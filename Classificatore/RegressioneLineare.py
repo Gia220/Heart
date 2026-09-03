@@ -55,7 +55,7 @@ if __name__ == "__main__":
         test_loader=test_loader, 
         name_model=model_name,
         epochs=150, 
-        lr=0.01
+        lr=0.07
         
     )
     print("Addestramento completato con successo!")

@@ -9,9 +9,6 @@ from torch.utils.data import DataLoader, random_split, Subset
 from torch.utils.tensorboard import SummaryWriter
 import kagglehub
 
-# ==========================================
-# DEFINIZIONE ARCHITETTURA CUSTOM (Potenziata con Batch Norm)
-# ==========================================
 class CustomECGNet(nn.Module):
     def __init__(self, num_classes=2):
         super(CustomECGNet, self).__init__()
@@ -49,18 +46,14 @@ class CustomECGNet(nn.Module):
         return x
 
 def main():
-    # ==========================================
-    # 1. SETUP E DIRECTORY
-    # ==========================================
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Hardware in uso: {device}")
 
     os.makedirs('risultati_ecg_custom/logs', exist_ok=True)
     writer = SummaryWriter('risultati_ecg_custom/logs')
 
-    # ==========================================
-    # 2. DOWNLOAD E PREPARAZIONE DATASET
-    # ==========================================
+    #DOWNLOAD E PREPARAZIONE DATASET
     print("Verifica dataset da 100k immagini (Kaggle)...")
     data_dir = kagglehub.dataset_download("mhasnain1806/ecg-images")
     print(f"Dati pronti in: {data_dir}")
@@ -93,25 +86,23 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=4)
 
-    # ==========================================
-    # 3. INIZIALIZZAZIONE E TRAINING LOOP
-    # ==========================================
+    #INIZIALIZZAZIONE 
     model = CustomECGNet(num_classes=2).to(device)
     pesi_classi = torch.tensor([1.0, 4.22]).to(device) 
-    criterion = nn.CrossEntropyLoss(weight=pesi_classi) 
+    criterion = nn.CrossEntropyLoss(weight=pesi_classi)             #classi sbilanciate
     
-    # Learning rate rialzato a 0.0002 grazie alla Batch Norm
     optimizer = optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
     epochs = 40
 
-    print("\nInizio addestramento Custom CNN (v2) sul Cluster...")
+    print("\nInizio addestramento Custom CNN")
     for epoch in range(epochs):
         start_time = time.time()
         
-        # --- TRAINING ---
+        #  TRAINING 
         model.train()
         running_loss, correct_train, total_train = 0.0, 0, 0
+
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -128,7 +119,7 @@ def main():
         epoch_train_loss = running_loss / total_train
         epoch_train_acc = correct_train / total_train
         
-        # --- TESTING ---
+        #  TESTING 
         model.eval()
         val_loss, correct_test, total_test = 0.0, 0, 0
         with torch.no_grad():
