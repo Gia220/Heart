@@ -1,14 +1,19 @@
+import sys
 import os
+# Risale alla cartella padre 'Progetto' e la aggiunge ai percorsi noti
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
 import torch
 import joblib
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 # Assicurati che questi import puntino correttamente ai tuoi file
-from Classificatore.dataset import HeartDiseaseDataset
-from Classificatore.train_utils import train_model
-from Classificatore.metrics_report import evaluate_and_save
-from Classificatore.RegressioneLineare import LogisticRegressor
+from Tabulari.dataset import HeartDiseaseDataset
+from Tabulari.train_utils import train_model
+from Tabulari.metrics_report import evaluate_and_save
+from Tabulari.RegLog import LogisticRegressor
 
 def main():
 
@@ -48,7 +53,7 @@ def main():
     #PRIMO RUN: Senza Weight Decay
     print("\n--- Addestramento Modello Standard ---")
     poly_model_1 = LogisticRegressor(in_features=poly_dim)
-    trained_poly_1 = train_model(poly_model_1, train_loader, test_loader, epochs=250, lr=0.005, name_model="Poly_Reg")
+    trained_poly_1 = train_model(poly_model_1, train_loader, test_loader, epochs=150, lr=0.004, name_model="Poly_Reg")
     evaluate_and_save(trained_poly_1, test_loader, model_name="Poly_Reg")
     
     # Salvataggio pesi modello 1

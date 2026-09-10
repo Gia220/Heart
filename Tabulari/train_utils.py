@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD
 from torch.utils.tensorboard import SummaryWriter
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import recall_score, f1_score, precision_score
 import torch
 import datetime
 
@@ -66,11 +66,16 @@ def train_model(model, train_loader, test_loader, name_model, epochs=100, lr=0.0
                 
             #metriche medie per l'intera epoca
             epoch_test_loss = test_loss / len(test_loader)
-            acc = accuracy_score(all_targets, all_preds)
-            
+            rec = recall_score(all_targets, all_preds)
+            prec = precision_score(all_targets, all_preds)
+            f1 = f1_score(all_targets, all_preds)
+
             # Log entrambe le metriche su TensorBoard
             writer.add_scalar('Loss/test', epoch_test_loss, epoch)
-            writer.add_scalar('Accuracy/test', acc, epoch)
+            writer.add_scalar('Recal/test', rec, epoch)
+            writer.add_scalar('F1/test', f1, epoch)
+            writer.add_scalar('Prec/test', prec, epoch)
+
             
     writer.close()
     return model

@@ -11,6 +11,7 @@ logs/
 /heart+disease
 /saved_models
 /demo_immagini
+/_log
 *.pth
 *.csv
 

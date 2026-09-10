@@ -1,12 +1,17 @@
+import sys
+import os
+# Risale alla cartella padre 'Progetto' e la aggiunge ai percorsi noti
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from torch import nn
 import pandas as pd
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import DataLoader, random_split
-from Classificatore.dataset import HeartDiseaseDataset
-from Classificatore.metrics_report import evaluate_and_save
-from Classificatore.train_utils import train_model
+from Tabulari.dataset import HeartDiseaseDataset
+from Tabulari.metrics_report import evaluate_and_save
+from Tabulari.train_utils import train_model
 import os
 
 class LogisticRegressor(nn.Module):
@@ -55,7 +60,7 @@ if __name__ == "__main__":
         test_loader=test_loader, 
         name_model=model_name,
         epochs=150, 
-        lr=0.07
+        lr=0.01
         
     )
     print("Addestramento completato con successo!")

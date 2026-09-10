@@ -1,11 +1,15 @@
+import sys
+import os
+# Risale alla cartella padre 'Progetto' e la aggiunge ai percorsi noti
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 import torch.nn as nn
 import torch
 from torch.utils.data import DataLoader, random_split
-from Classificatore.dataset import HeartDiseaseDataset
-from Classificatore.train_utils import train_model
-from Classificatore.metrics_report import evaluate_and_save
-import os
+from Tabulari.dataset import HeartDiseaseDataset
+from Tabulari.train_utils import train_model
+from Tabulari.metrics_report import evaluate_and_save
 
 
 class HeartDiseaseMLP(nn.Module):
@@ -23,12 +27,10 @@ class HeartDiseaseMLP(nn.Module):
             # Primo Hidden Layer
             nn.Linear(in_features, hidden_1),
             nn.ReLU(),
-            nn.Dropout(p=0.5), # Spegne casualmente il 50% dei neuroni in fase di training
             
             # Secondo Hidden Layer
             nn.Linear(hidden_1, hidden_2),
             nn.ReLU(),
-            nn.Dropout(p=0.5),
             
             # Layer di Output
             nn.Linear(hidden_2, 1)

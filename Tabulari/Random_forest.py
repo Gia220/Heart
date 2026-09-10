@@ -1,13 +1,19 @@
+import sys
+import os
+# Risale alla cartella padre 'Progetto' e la aggiunge ai percorsi noti
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+
 import torch
 import numpy as np
 from torch.utils.data import random_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, f1_score, accuracy_score
+from sklearn.metrics import classification_report, f1_score, accuracy_score, recall_score, precision_score
 import joblib  
 import pandas as pd
-import os
 from torch.utils.data import DataLoader
-from Classificatore.dataset import HeartDiseaseDataset
+from Tabulari.dataset import HeartDiseaseDataset
 
 def extract_arrays_from_subset(subset):
     X_list, y_list = [], []
@@ -56,10 +62,14 @@ if __name__ == "__main__":
     y_pred = rf_model.predict(X_test)
     
     acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec= recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     
     print(f"Accuracy: {acc:.4f}")
     print(f"F1-Score: {f1:.4f}\n")
+    print(f"Rec: {rec:.4f}")
+    print(f"prec: {prec:.4f}\n")
     print("Report Completo:")
     print(classification_report(y_test, y_pred))
 

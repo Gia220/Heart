@@ -87,14 +87,16 @@ def main():
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2)
     writer = SummaryWriter(os.path.join(args.output_dir, 'logs'))
 
-    # Training Loop
+# Training Loop
     print("\nInizio addestramento sul Cluster...")
     for epoch in range(args.epochs):
         start_time = time.time()
         
-        # Train 
+        # --- TRAINING ---
         resnet.train()
         running_loss, correct, total = 0.0, 0, 0
+        tp_train, fp_train, fn_train = 0, 0, 0  # Contatori metriche cliniche
+
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -108,36 +110,67 @@ def main():
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
             
+            # Calcolo tensoriale nativo per TP, FP, FN
+            tp_train += ((predicted == 1) & (labels == 1)).sum().item()
+            fp_train += ((predicted == 1) & (labels == 0)).sum().item()
+            fn_train += ((predicted == 0) & (labels == 1)).sum().item()
+            
         epoch_train_loss = running_loss / total
         epoch_train_acc = correct / total
+        
+        # Formule metriche 
+        train_precision = tp_train / (tp_train + fp_train) if (tp_train + fp_train) > 0 else 0.0
+        train_recall = tp_train / (tp_train + fn_train) if (tp_train + fn_train) > 0 else 0.0
+        train_f1 = 2 * (train_precision * train_recall) / (train_precision + train_recall) if (train_precision + train_recall) > 0 else 0.0
 
-        # Test 
+        # --- TESTING ---
         resnet.eval()
         val_loss, correct_test, total_test = 0.0, 0, 0
+        tp_test, fp_test, fn_test = 0, 0, 0
+
         with torch.no_grad():
             for inputs, labels in test_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
                 outputs = resnet(inputs)
                 loss = criterion(outputs, labels)
+                
                 val_loss += loss.item() * inputs.size(0)
                 _, predicted = torch.max(outputs, 1)
                 total_test += labels.size(0)
                 correct_test += (predicted == labels).sum().item()
+                
+                # Calcolo tensoriale nativo per il Test
+                tp_test += ((predicted == 1) & (labels == 1)).sum().item()
+                fp_test += ((predicted == 1) & (labels == 0)).sum().item()
+                fn_test += ((predicted == 0) & (labels == 1)).sum().item()
 
         epoch_test_loss = val_loss / total_test
         epoch_test_acc = correct_test / total_test
+        
+        test_precision = tp_test / (tp_test + fp_test) if (tp_test + fp_test) > 0 else 0.0
+        test_recall = tp_test / (tp_test + fn_test) if (tp_test + fn_test) > 0 else 0.0
+        test_f1 = 2 * (test_precision * test_recall) / (test_precision + test_recall) if (test_precision + test_recall) > 0 else 0.0
 
         scheduler.step(epoch_test_loss)
         current_lr = optimizer.param_groups[0]['lr']
+        end_time = time.time()
+        
+        # --- LOGGING E TENSORBOARD ---
+        print(f"Epoca [{epoch+1}/{args.epochs}] | Test Loss: {epoch_test_loss:.4f} | Recall: {test_recall:.4f} | F1: {test_f1:.4f} | LR: {current_lr:.6f} | Tempo: {end_time - start_time:.0f}s")
         
         writer.add_scalar('Learning_Rate/Layer4', current_lr, epoch)
         writer.add_scalar('Loss/Train', epoch_train_loss, epoch)
         writer.add_scalar('Loss/Test', epoch_test_loss, epoch)
         writer.add_scalar('Accuracy/Train', epoch_train_acc, epoch)
         writer.add_scalar('Accuracy/Test', epoch_test_acc, epoch)
-
-        end_time = time.time()
-        print(f"Epoca [{epoch+1}/{args.epochs}] | Test Loss: {epoch_test_loss:.4f} | Test Acc: {epoch_test_acc:.4f} | LR: {current_lr} | Tempo: {end_time - start_time:.0f}s")
+        
+        # Log Metriche 
+        writer.add_scalar('Recall/Train', train_recall, epoch)
+        writer.add_scalar('Recall/Test', test_recall, epoch)
+        writer.add_scalar('Precision/Train', train_precision, epoch)
+        writer.add_scalar('Precision/Test', test_precision, epoch)
+        writer.add_scalar('F1_Score/Train', train_f1, epoch)
+        writer.add_scalar('F1_Score/Test', test_f1, epoch)
 
     # Salvataggio Pesi
     model_path = os.path.join(args.output_dir, 'resnet18_ecg_finetuned.pth')
