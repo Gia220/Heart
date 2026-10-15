@@ -17,6 +17,6 @@ mkdir -p logs
 
 # Avviamo il container Apptainer con il nostro script Python
 # Utilizziamo l'immagine preconfigurata indicata nelle linee guida del DMI
-apptainer run --nv /shared/sifs/latest.sif python train_ecg.py --batch_size 128 --epochs 15 --output_dir ./risultati_ecg
+apptainer run --nv /shared/sifs/latest.sif python train_ecg.py --batch_size 128 --epochs 40 --output_dir ./risultati_ecg
 
 [ $? -eq 0 ] && echo "Esecuzione completata con successo!" || echo "Errore durante l'esecuzione del job."

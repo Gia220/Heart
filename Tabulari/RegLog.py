@@ -32,7 +32,8 @@ if __name__ == "__main__":
     model_name = 'linear_regressor'
 
     
-    csv_path = "data/heart_johnsmith88_mod.csv"  #path dataset
+    csv_path = "data/heart_disease_hAealth_indicators_BRFSS2015.csv"  #path dataset
+    #csv_path = "data/heart_johnsmith88_mod.csv"
     dataset = HeartDiseaseDataset(csv_path)
 
     input_dim = dataset[0][0].shape[0] 

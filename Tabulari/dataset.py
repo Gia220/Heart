@@ -11,6 +11,10 @@ class HeartDiseaseDataset(Dataset):
         # Separiamo feature e target
         X_raw = self.data.iloc[:, :-1].values
         Y_raw = self.data.iloc[:, -1].values
+        #Y_raw = self.data.iloc[:, 0].values
+        #X_raw = self.data.iloc[:, 1:].values
+
+        
         
         # Normalizzazione
         scaler = StandardScaler()

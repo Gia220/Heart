@@ -14,7 +14,7 @@ import kagglehub
 def main():
     parser = argparse.ArgumentParser(description='ResNet-18 ECG Fine-Tuning')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size (default: 64, consigliato per GPU cluster)')
-    parser.add_argument('--epochs', type=int, default=15, help='Numero di epoche (default: 15)')
+    parser.add_argument('--epochs', type=int, default=40, help='Numero di epoche (default: 40)')
     parser.add_argument('--output_dir', type=str, default='./runs/ecg_resnet', help='Cartella per TensorBoard e pesi')
     args = parser.parse_args()
 

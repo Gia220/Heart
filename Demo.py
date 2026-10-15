@@ -9,8 +9,8 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 
 from ECG.train_custom import CustomECGNet
-from Classificatore.RegressioneLineare import LogisticRegressor
-from Classificatore.MLP import HeartDiseaseMLP 
+from Tabulari.RegLog import LogisticRegressor
+from Tabulari.MLP import HeartDiseaseMLP 
 
 @st.cache_resource
 def get_fitted_scaler(csv_path="data/heart_johnsmith88_mod.csv"):
@@ -33,11 +33,9 @@ st.set_page_config(page_title="Demo Diagnosi Cardiologica", layout="wide")
 st.title("🫀 Progetto Machine Learning: Diagnosi Cardiologica")
 
 # Creazione delle due schede principali
-tab1, tab2 = st.tabs(["📊 Dati Clinici", "📈 Tracciati ECG (Immagini)"])
+tab1, tab2 = st.tabs(["Dati Clinici", " Tracciati ECG"])
 
-# ==========================================
 # TAB 1: DATI TABULARI 
-# ==========================================
 with tab1:
     st.header("Analisi dei Parametri Clinici")
     
@@ -65,7 +63,7 @@ with tab1:
             classi_cliniche = {0: "Sano", 1: "Malato"}
             ground_truth = int(valori[13]) if len(valori) >= 14 else None
             
-            st.subheader(" Dettaglio Anamnesi Paziente")
+            st.subheader(" Dettaglio clinico paziente")
             
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
@@ -187,9 +185,7 @@ with tab1:
         st.error(f"File non trovato! Assicurati di aver generato tutti i pesi (.pth e .pkl). Dettagli: {e}")
 
 
-# ==========================================
 # TAB 2: IMMAGINI ECG (CONFRONTO MODELLI)
-# ==========================================
 with tab2:
     st.header("Analisi dei Tracciati ECG")
     
@@ -197,8 +193,7 @@ with tab2:
     with col_input:
         uploaded_img = st.file_uploader("Carica l'immagine dell'ECG", type=["png", "jpg", "jpeg"])
     with col_gt:
-        ground_truth_cv = st.selectbox("Seleziona il Ground Truth:", ["Normale", "Infarto Miocardico"])
-        
+        ground_truth_cv = st.selectbox("Seleziona il Ground Truth (Opzionale):", ["Normale", "Infarto Miocardico"],index=None,placeholder="Nessuno")
     if uploaded_img is not None:
         image = Image.open(uploaded_img)
         
@@ -222,7 +217,7 @@ with tab2:
             try:
                 # Custom CNN 
                 modello_custom = CustomECGNet(num_classes=2) 
-                modello_custom.load_state_dict(torch.load('weight/custom_ecg_net_final.pth', map_location='cpu'))
+                modello_custom.load_state_dict(torch.load('weight/custom_ecg_net.pth', map_location='cpu'))
                 modello_custom.eval()
                 with torch.no_grad():
                     out_custom = modello_custom(img_tensor)
@@ -232,7 +227,7 @@ with tab2:
                 # ResNet-18 
                 modello_resnet = models.resnet18(pretrained=False)
                 modello_resnet.fc = nn.Linear(modello_resnet.fc.in_features, 2)
-                modello_resnet.load_state_dict(torch.load('weight/resnet18_ecg_finetuned.pth', map_location='cpu'))
+                modello_resnet.load_state_dict(torch.load('weight/resnet18_ecg.pth', map_location='cpu'))
                 modello_resnet.eval()
                 with torch.no_grad():
                     out_resnet = modello_resnet(img_tensor)
@@ -242,7 +237,7 @@ with tab2:
                 col_net1, col_net2 = st.columns(2)
                 
                 with col_net1:
-                    st.subheader("Custom CNN (Baseline)")
+                    st.subheader("Custom CNN")
                     st.metric(label="Diagnosi Predetta", value=classe_custom)
                     if ground_truth_cv in classi:
                         if classe_custom == ground_truth_cv:
@@ -251,7 +246,7 @@ with tab2:
                             st.error("**Predizione errata**")
                             
                 with col_net2:
-                    st.subheader("ResNet-18 (Transfer Learning)")
+                    st.subheader("ResNet-18")
                     st.metric(label="Diagnosi Predetta", value=classe_resnet)
                     if ground_truth_cv in classi:
                         if classe_resnet == ground_truth_cv:

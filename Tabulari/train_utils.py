@@ -39,6 +39,7 @@ def train_model(model, train_loader, test_loader, name_model, epochs=100, lr=0.0
             
             epoch_loss += loss.item()
 
+        print(f"Epoca {epoch}: train_loss: {epoch_loss / len(train_loader)}")
         writer.add_scalar('Loss/train', epoch_loss / len(train_loader), epoch)          # Log la media della loss di addestramento su TensorBoard
 
         

@@ -15,6 +15,7 @@ echo "Avvio job Custom CNN..."
 mkdir -p logs_custom
 
 # Avvio del container Apptainer globale come da documentazione
+#apptainer run --nv /shared/sifs/latest.sif python train_custom.py
 apptainer run --nv /shared/sifs/latest.sif python train_custom.py
 
 [ $? -eq 0 ] && echo "Completato con successo!" || echo "Errore!"
