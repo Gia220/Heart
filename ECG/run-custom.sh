@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=ecg_custom
-#SBATCH --account=dl-course-q2
-#SBATCH --partition=dl-course-q2
+#SBATCH --account=dl-course-q1
+#SBATCH --partition=dl-course-q1
 #SBATCH --qos=gpu-medium
 #SBATCH --mem=8G
 #SBATCH --cpus-per-task=2

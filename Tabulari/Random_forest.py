@@ -1,90 +1,101 @@
-import sys
+# Trees.py  -- baseline ad alberi sugli STESSI split e con le STESSE metriche di MLP.py / RegLog.py
+import argparse
 import os
-# Risale alla cartella padre 'Progetto' e la aggiunge ai percorsi noti
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import joblib
+
+from dataset import set_seed, load_splits, make_loaders
+from metrics_report import predict_proba, find_threshold, evaluate_and_save
 
 
+def build_model(kind, pos_weight, seed, n_jobs):
+    use_w = pos_weight is not None
 
-import torch
-import numpy as np
-from torch.utils.data import random_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, f1_score, accuracy_score, recall_score, precision_score
-import joblib  
-import pandas as pd
-from torch.utils.data import DataLoader
-from Tabulari.dataset import HeartDiseaseDataset
+    if kind == "rf":
+        from sklearn.ensemble import RandomForestClassifier
+        return RandomForestClassifier(
+            n_estimators=300,
+            min_samples_leaf=20,          # evita foglie quasi pure: con dati rumorosi migliora molto
+            max_features="sqrt",
+            class_weight="balanced_subsample" if use_w else None,
+            n_jobs=n_jobs,
+            random_state=seed,
+        )
 
-def extract_arrays_from_subset(subset):
-    X_list, y_list = [], []
-    for x, y in subset:
-        X_list.append(x.numpy())
-        y_list.append(y.numpy())
-    return np.array(X_list), np.array(y_list)
+    if kind == "hgb":
+        # Gradient boosting di scikit-learn: nessuna installazione extra
+        from sklearn.ensemble import HistGradientBoostingClassifier
+        return HistGradientBoostingClassifier(
+            learning_rate=0.05,
+            max_iter=500,
+            early_stopping=True,
+            n_iter_no_change=30,
+            class_weight="balanced" if use_w else None,
+            random_state=seed,
+        )
+
+    if kind == "lgbm":
+        try:
+            from lightgbm import LGBMClassifier
+        except ImportError:
+            raise SystemExit("LightGBM non installato. Dentro il container: pip install --user lightgbm "
+                             "(oppure usa --model hgb).")
+        return LGBMClassifier(
+            n_estimators=2000,
+            learning_rate=0.03,
+            num_leaves=31,
+            min_child_samples=50,
+            subsample=0.8, subsample_freq=1,
+            colsample_bytree=0.8,
+            reg_lambda=1.0,
+            scale_pos_weight=pos_weight if use_w else 1.0,
+            n_jobs=n_jobs,
+            random_state=seed,
+            verbose=-1,
+        )
+
+    raise ValueError(kind)
+
 
 if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--csv", default="data/heart_disease_health_indicators.csv")
+    ap.add_argument("--model", choices=["rf", "lgbm", "hgb"], default="lgbm")
+    ap.add_argument("--no_pos_weight", action="store_true")
+    ap.add_argument("--min_recall", type=float, default=None)
+    ap.add_argument("--seed", type=int, default=42)
+    args = ap.parse_args()
 
-    model_name = 'random_forest'
+    set_seed(args.seed)
+    n_jobs = int(os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count() or 1))
+    print(f"CPU usate: {n_jobs}")
 
-    csv_path = "data/heart_johnsmith88_mod.csv" 
-    dataset = HeartDiseaseDataset(csv_path)
+    splits = load_splits(args.csv, seed=args.seed)
+    _, val_loader, test_loader = make_loaders(splits, batch_size=4096)
 
-    input_dim = dataset[0][0].shape[0]
-    print(f"Dati caricati! Feature in ingresso: {input_dim}")
+    pw = None if args.no_pos_weight else splits["pos_weight"]
+    model = build_model(args.model, pw, args.seed, n_jobs)
+    model_name = f"{args.model}{'_nopw' if args.no_pos_weight else ''}"
 
-    torch.manual_seed(42)
+    print(f"Addestramento di {model_name}...")
+    if args.model == "lgbm":
+        import lightgbm as lgb
+        model.fit(
+            splits["X_train"], splits["y_train"],
+            eval_set=[(splits["X_val"], splits["y_val"])],
+            eval_metric="average_precision",
+            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(50)],
+        )
+        print(f"Alberi usati (early stopping): {model.best_iteration_}")
+    else:
+        model.fit(splits["X_train"], splits["y_train"])
+    print("Addestramento completato!")
 
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    # Soglia scelta sul validation, test usato una sola volta
+    y_val, p_val = predict_proba(model, val_loader)
+    thr = find_threshold(y_val, p_val, min_recall=args.min_recall)
+    print(f"Soglia scelta sul validation: {thr:.3f}")
 
-    print("Estrazione delle feature per Scikit-Learn...")
-    X_train, y_train = extract_arrays_from_subset(train_dataset)
-    X_test, y_test = extract_arrays_from_subset(test_dataset)
+    evaluate_and_save(model, test_loader, model_name=model_name, threshold=thr)
 
-    y_train = y_train.ravel()
-    y_test = y_test.ravel()
-
-    print("Inizializzazione del RandomForestClassifier...")
-    rf_model = RandomForestClassifier(
-        n_estimators=100,        
-        max_depth=None,          
-        random_state=42,         
-        n_jobs=-1,               
-        class_weight='balanced'
-    )
-
-    print("Inizio dell'addestramento...")
-    rf_model.fit(X_train, y_train)
-    print("Addestramento completato con successo!")
-
-    print("\nValutazione sul Test Set ")
-    y_pred = rf_model.predict(X_test)
-    
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred)
-    rec= recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    
-    print(f"Accuracy: {acc:.4f}")
-    print(f"F1-Score: {f1:.4f}\n")
-    print(f"Rec: {rec:.4f}")
-    print(f"prec: {prec:.4f}\n")
-    print("Report Completo:")
-    print(classification_report(y_test, y_pred))
-
-    print("\n--- Feature Importance ---")
-    feature_names = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
-    
-    if len(feature_names) == input_dim:
-        importance_df = pd.DataFrame({
-            'Feature': feature_names,
-            'Importance': rf_model.feature_importances_
-        }).sort_values(by='Importance', ascending=False)
-        print(importance_df.head(5))
-
-    #salvataggio pesi
-    os.makedirs('weight', exist_ok=True)
-    save_path = f'weight/{model_name}.pkl'
-    joblib.dump(rf_model, save_path)
-    print(f"Modello salvato in: {save_path}")
+    os.makedirs("weight", exist_ok=True)
+    joblib.dump(model, f"weight/{model_name}.joblib")
