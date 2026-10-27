@@ -55,9 +55,9 @@ def compute_metrics(y_true, probs, threshold=0.5):
     }, confusion_matrix(y_true, preds)
 
 
-def evaluate_and_save(model, loader, model_name="Modello", threshold=0.5,
-                      results_file="results.csv", device="cpu"):
-    """Valuta (da usare sul TEST, una sola volta), stampa il report e accoda a results.csv."""
+def evaluate_and_save(model, loader, model_name="Modello", threshold=0.5, results_file="results.csv", device="cpu"):
+
+    """ stampa il report e accoda a results.csv."""
     y_true, probs = predict_proba(model, loader, device)
     m, cm = compute_metrics(y_true, probs, threshold)
 

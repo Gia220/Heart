@@ -3,7 +3,7 @@ data/
 *.csv
 
 # TensorBoard logs
-logs/
+Tabulari/logs/
 
 /.vscode
 /__pycache__
@@ -11,7 +11,6 @@ logs/
 /heart+disease
 /saved_models
 /demo_immagini
-/_log
 *.pth
 *.csv
 

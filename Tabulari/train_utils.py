@@ -1,6 +1,4 @@
-# train_utils.py
 import copy
-import datetime
 import os
 import torch
 from torch.optim import AdamW
@@ -25,7 +23,6 @@ def train_model(model, train_loader, val_loader, name_model, epochs=100, lr=1e-3
                 weights_dir="weight"):
     """
     Allena con AdamW, scheduler e early stopping sulla PR-AUC di validation.
-    Restituisce il modello con i pesi della MIGLIORE epoca (non dell'ultima).
     """
     model.to(device)
 
@@ -39,10 +36,11 @@ def train_model(model, train_loader, val_loader, name_model, epochs=100, lr=1e-3
     writer = SummaryWriter(f"logs/{run_name}")
     os.makedirs(weights_dir, exist_ok=True)
 
+    #per salvare i pesi della migliore epoca e per l'early stop
     best_ap, best_state, bad_epochs = -1.0, None, 0
 
     for epoch in range(epochs):
-        # ---- train ----
+        # train 
         model.train()
         train_loss = 0.0
         for X, y in train_loader:
@@ -54,7 +52,7 @@ def train_model(model, train_loader, val_loader, name_model, epochs=100, lr=1e-3
             train_loss += loss.item()
         train_loss /= len(train_loader)
 
-        # ---- validation ----
+        #  validation 
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
@@ -71,10 +69,16 @@ def train_model(model, train_loader, val_loader, name_model, epochs=100, lr=1e-3
         writer.add_scalar("Loss/train", train_loss, epoch)
         writer.add_scalar("Loss/val", val_loss, epoch)
         writer.add_scalar("PR_AUC/val", ap, epoch)
+        writer.add_scalar("Precision/val", m["Precision"], epoch)
+        writer.add_scalar("Recall/val", m["Recall"], epoch)
+        writer.add_scalar("F1_Score/val", m["F1_Score"], epoch)
+        writer.add_scalar("Accuracy/val", m["Accuracy"], epoch)               
         writer.add_scalar("ROC_AUC/val", m["ROC_AUC"], epoch)
         writer.add_scalar("LR", optimizer.param_groups[0]["lr"], epoch)
 
-        # ---- checkpoint + early stopping ----
+
+
+        #  checkpoint + early stopping 
         if ap > best_ap:
             best_ap, bad_epochs = ap, 0
             best_state = copy.deepcopy(model.state_dict())

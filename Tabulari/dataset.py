@@ -19,8 +19,7 @@ def set_seed(seed=42):
 
 def load_splits(csv_path, val_size=0.15, test_size=0.15, seed=42):
     """
-    Carica il CSV, fa uno split stratificato train/val/test e normalizza usando SOLO le statistiche del train.
-    Restituisce un dizionario con array numpy e lo scaler.
+    Carica il CSV, fa split train/val/test e normalizza usando SOLO le statistiche del train.
     """
     df = pd.read_csv(csv_path)
 
@@ -28,17 +27,18 @@ def load_splits(csv_path, val_size=0.15, test_size=0.15, seed=42):
     y = df[TARGET].values.astype(np.float32)
     X = df.drop(columns=[TARGET]).values.astype(np.float32)
 
-    # 1) separo il test, 2) divido il resto in train/val 
+    # separo il test
     X_tmp, X_test, y_tmp, y_test = train_test_split(
         X, y, test_size=test_size, stratify=y, random_state=seed
     )
 
+    #divido il resto in train/val 
     rel_val = val_size / (1.0 - test_size)
     X_train, X_val, y_train, y_val = train_test_split(
         X_tmp, y_tmp, test_size=rel_val, stratify=y_tmp, random_state=seed
     )
 
-    # Scaler fittato solo sul train -> nessun data leakage
+    # Scaler fittato solo sul train 
     scaler = StandardScaler().fit(X_train)
     X_train, X_val, X_test = (scaler.transform(a).astype(np.float32) for a in (X_train, X_val, X_test))
 
@@ -56,7 +56,7 @@ def load_splits(csv_path, val_size=0.15, test_size=0.15, seed=42):
 
 
 def make_loaders(splits, batch_size=1024, num_workers=0):
-    """Crea i DataLoader a partire da tensori (molto più veloce di un Dataset riga per riga)."""
+    """Crea i DataLoader a partire da tensori."""
     def to_ds(X, y):
         return TensorDataset(torch.from_numpy(X), torch.from_numpy(y).view(-1, 1))
 
