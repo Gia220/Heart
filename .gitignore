@@ -4,6 +4,7 @@ data/
 
 # TensorBoard logs
 Tabulari/logs/
+ECG/logs
 
 /.vscode
 /__pycache__
