@@ -60,7 +60,8 @@ def compute_metrics(y_true, probs, threshold=0.5):
     }
 
 
-def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/transformer_experiment_1"):
+
+def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/transformer_2", run_id="run0"):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Esecuzione su device: {device}")
 
@@ -75,6 +76,15 @@ def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/trans
     
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    
+    # 1. SCHEDULER: Dimezza il learning rate se la val_loss non scende per 3 epoche di fila
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
+
+    # Variabile per tracciare la migliore validation loss
+    best_val_loss = float('inf')
+    
+    os.makedirs("Weight", exist_ok=True)
+    save_path = os.path.join("Weight", f"transformer_ecg_best_{run_id}.pth")
 
     for epoch in range(epochs):
         # --- TRAINING ---
@@ -108,7 +118,6 @@ def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/trans
                 loss = criterion(outputs, labels)
                 val_loss += loss.item() * inputs.size(0)
                 
-                # Applica la sigmoide per ottenere probabilità [0, 1]
                 probs = torch.sigmoid(outputs)
                 all_preds.extend(probs.cpu().numpy())
                 all_targets.extend(labels.cpu().numpy())
@@ -120,8 +129,12 @@ def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/trans
         all_preds = np.array(all_preds)
         m = compute_metrics(all_targets, all_preds, threshold=0.5)
 
+        # 2. AGGIORNAMENTO SCHEDULER: Passiamo la val_loss per fargli valutare se ridurre il LR
+        scheduler.step(val_loss)
+
+        current_lr = optimizer.param_groups[0]['lr']
         print(f"Epoca {epoch+1:3d}/{epochs} | train loss {train_loss:.4f} | val loss {val_loss:.4f} | " 
-              f"PR-AUC {m['PR_AUC']:.4f} | ROC-AUC {m['ROC_AUC']:.4f} | lr {optimizer.param_groups[0]['lr']:.1e}")
+              f"PR-AUC {m['PR_AUC']:.4f} | ROC-AUC {m['ROC_AUC']:.4f} | lr {current_lr:.1e}")
         
         writer.add_scalar("Loss/val", val_loss, epoch)
         writer.add_scalar("PR_AUC/val", m['PR_AUC'], epoch)
@@ -130,15 +143,17 @@ def train_model(data_dir, epochs=30, batch_size=64, lr=1e-4, log_dir="runs/trans
         writer.add_scalar("F1_Score/val", m["F1_Score"], epoch)
         writer.add_scalar("Accuracy/val", m["Accuracy"], epoch)               
         writer.add_scalar("ROC_AUC/val", m["ROC_AUC"], epoch)
-        writer.add_scalar("LR", optimizer.param_groups[0]["lr"], epoch)
+        writer.add_scalar("LR", current_lr, epoch)
+        
+        # 3. MODEL CHECKPOINTING: Salva i pesi SOLO se la Validation Loss è la migliore vista finora
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), save_path)
+            print(f"  [+] Nuovo modello top salvato! (Val Loss scesa a {best_val_loss:.4f})")
 
     writer.close()
-    
-    # SALVATAGGIO DEI PESI (Fondamentale per l'inferenza e le mappe di attenzione locali)
-    os.makedirs("Weight", exist_ok=True)
-    save_path = os.path.join("Weight", "transformer_ecg.pth")
-    torch.save(model.state_dict(), save_path)
-    print(f"Addestramento completato. Pesi salvati in {save_path}.")
+    print(f"\nAddestramento completato. Il modello migliore è in: {save_path}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training Transformer su PTB-XL")
@@ -149,11 +164,16 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    log_dir = f"runs/Transformer_ep{args.epochs}_bs{args.batch_size}_lr{args.lr}"
+
+    
+    # La cartella log conterrà il timestamp per non sovrascrivere mai i vecchi grafici
+    log_dir = f"runs/Transformer_ep{args.epochs}_bs{args.batch_size}_lr{args.lr}_{2}"
     
     train_model(
         data_dir=args.data_dir, 
         epochs=args.epochs, 
         batch_size=args.batch_size, 
         lr=args.lr,
-        log_dir=log_dir
+        log_dir=log_dir,
+        run_id=2
+    )
