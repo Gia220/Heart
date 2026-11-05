@@ -4,11 +4,9 @@ import numpy as np
 import pandas as pd
 import wfdb
 
-# ==========================================
-# CONFIGURAZIONE PERCORSI E IPERPARAMETRI
-# ==========================================
-DATASET_DIR = "data/ptb-xl"  # Modifica con il tuo percorso locale
-SAMPLING_RATE = 500  # Usiamo la versione a 100 Hz (oppure 500 Hz)
+DATASET_DIR = "../data/ptb-xl"  
+SAMPLING_RATE = 500  #frequeza
+SAMPLE_ECG_ID = 39
 
 
 def load_ptbxl_metadata(data_dir):
@@ -38,7 +36,7 @@ def load_raw_ecg_signal(df, record_id, data_dir, sampling_rate=100):
 
 
 def plot_12_lead_ecg(signal, meta, record_id, diagnostic_class="N/A"):
-    """Grafica le 12 derivazioni dell'ECG in una griglia 3x4 (layout clinico standard)."""
+    """Grafica le 12 derivazioni dell'ECG in una griglia 3x4 """
     num_samples, num_channels = signal.shape
     fs = meta["fs"]
     time_axis = np.arange(num_samples) / fs
@@ -96,13 +94,11 @@ if __name__ == "__main__":
     print(f"Dataset caricato con successo! Totale record: {len(df_metadata)}")
 
     # Selezioniamo un ID di esempio (es. il primo record)
-    sample_ecg_id = df_metadata.index[50]
-    sample_scp_codes = df_metadata.loc[sample_ecg_id, "scp_codes"]
+    
+    sample_scp_codes = df_metadata.loc[SAMPLE_ECG_ID, "scp_codes"]
 
-    print(f"\nCaricamento segnale per ECG ID: {sample_ecg_id}...")
-    ecg_signal, metadata = load_raw_ecg_signal(
-        df_metadata, sample_ecg_id, DATASET_DIR, sampling_rate=SAMPLING_RATE
-    )
+    print(f"\nCaricamento segnale per ECG ID: {SAMPLE_ECG_ID}...")
+    ecg_signal, metadata = load_raw_ecg_signal(df_metadata, SAMPLE_ECG_ID, DATASET_DIR, sampling_rate=SAMPLING_RATE)
 
     print(f"Dimensione matrice segnale: {ecg_signal.shape} (Campioni x Derivazioni)")
     print(f"Frequenza di campionamento: {metadata['fs']} Hz")
@@ -110,8 +106,8 @@ if __name__ == "__main__":
 
     # Plot delle 12 derivazioni in griglia
     plot_12_lead_ecg(
-        ecg_signal, metadata, record_id=sample_ecg_id, diagnostic_class=sample_scp_codes
+        ecg_signal, metadata, record_id=SAMPLE_ECG_ID, diagnostic_class=sample_scp_codes
     )
 
     # Plot sovrapposto
-    plot_overlay_ecg(ecg_signal, metadata, record_id=sample_ecg_id)
+    plot_overlay_ecg(ecg_signal, metadata, record_id=SAMPLE_ECG_ID)

@@ -8,37 +8,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import wfdb
 import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import torch.nn.functional as F
 
-# ==========================================
-# 1. ARCHITETTURA DEL MODELLO
-# ==========================================
-class ECGTransformer(nn.Module):
-    def __init__(self, input_channels=12, d_model=128, nhead=8, num_layers=4, num_classes=5):
-        super(ECGTransformer, self).__init__()
-        self.conv_stem = nn.Sequential(
-            nn.Conv1d(in_channels=input_channels, out_channels=d_model, kernel_size=15, stride=4, padding=7),
-            nn.BatchNorm1d(d_model),
-            nn.ReLU()
-        )
-        self.pos_encoder = nn.Parameter(torch.randn(1, 250, d_model))
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=d_model, nhead=nhead, dim_feedforward=d_model*4, 
-            dropout=0.1, batch_first=True
-        )
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
-        self.fc = nn.Linear(d_model, num_classes)
-        
-    def forward(self, x):
-        x = self.conv_stem(x)
-        x = x.permute(0, 2, 1)
-        x = x + self.pos_encoder
-        x = self.transformer_encoder(x)
-        x = x.mean(dim=1)
-        return self.fc(x)
+from transformers import ECGTransformer
 
-# ==========================================
-# 2. ESTRAZIONE DELL'ATTENZIONE
-# ==========================================
+
 def extract_attention(model, x):
     """
     Estrae la matrice di attenzione dall'ultimo layer del Transformer.
@@ -60,9 +37,7 @@ def extract_attention(model, x):
         
         return attn_weights.squeeze(0) # [250, 250]
 
-# ==========================================
-# 3. CARICAMENTO DATI PTB-XL (FIX PERCORSI)
-# ==========================================
+
 def load_ptbxl_sample(data_dir, target_class="MI", ecg_id=None):
     """
     Carica i metadati e un segnale reale a 100 Hz (1000 timesteps) da PTB-XL.
@@ -100,8 +75,7 @@ def load_ptbxl_sample(data_dir, target_class="MI", ecg_id=None):
         else:
             selected_row = selected_df.iloc[0]
 
-    # FIX FONDAMENTALE: Unisce data_dir direttamente con il percorso relativo del file (filename_lr)
-    relative_path = selected_row['filename_lr'] # campionamento a 100 Hz (1000 punti per 10s)
+    relative_path = selected_row['filename_lr'] 
     full_path = os.path.join(data_dir, relative_path)
     
     # Caricamento con wfdb
@@ -112,9 +86,7 @@ def load_ptbxl_sample(data_dir, target_class="MI", ecg_id=None):
     
     return signal_tensor, selected_row.name, selected_row['diagnostic_superclass']
 
-# ==========================================
-# 4. PLOTTING CLINICO E ATTENZIONE
-# ==========================================
+
 def plot_ecg_with_attention(signal, attn_matrix, ecg_id, labels, lead_idx=1, lead_name="DII"):
     """
     Grafica il segnale ECG di una derivazione specifica con sovrapposta la heatmap dell'attenzione.
@@ -169,25 +141,86 @@ def plot_ecg_with_attention(signal, attn_matrix, ecg_id, labels, lead_idx=1, lea
     plt.tight_layout()
     plt.show()
 
+
+def plot_ecg_clinical_standard(signal, attn_matrix, ecg_id, labels, lead_idx=1, lead_name="DII"):
+    """
+    Disegna l'ECG rispettando la griglia clinica standard (carta millimetrata rosa)
+    e sovrappone la mappa di attenzione del Transformer.
+    """
+    # 1. Preparazione dell'Attenzione
+    attn_1d = attn_matrix.mean(dim=0).numpy()
+    attn_1d_resized = F.interpolate(
+        torch.tensor(attn_1d).unsqueeze(0).unsqueeze(0),
+        size=1000,
+        mode='linear',
+        align_corners=False
+    ).squeeze().numpy()
+    attn_1d_resized = (attn_1d_resized - attn_1d_resized.min()) / (attn_1d_resized.max() - attn_1d_resized.min() + 1e-8)
+
+    # 2. Dati del segnale (10 secondi a 100 Hz)
+    ecg_lead = signal[lead_idx, :].numpy()
+    time_axis = np.linspace(0, 10, 1000)
+
+    # Allargato a 16 pollici di larghezza (senza colorbar occuperà tutto lo spazio)
+    fig, ax = plt.subplots(figsize=(16, 5), dpi=150)
+    
+    # 3. IMPOSTAZIONE CARTA MILLIMETRATA CLINICA
+    ax.set_facecolor('#FFF5F5')
+    
+    # Ampiezza fissa da -1 a 1 mV
+    y_min, y_max = -1.0, 1.0
+    
+    # Griglia Piccola (40 ms = 0.04s, 0.1 mV)
+    ax.set_xticks(np.arange(0, 10.04, 0.04), minor=True)
+    ax.set_yticks(np.arange(y_min, y_max + 0.1, 0.1), minor=True)
+    ax.grid(True, which='minor', color='#FFC0CB', linestyle='-', linewidth=0.5, alpha=0.7)
+    
+    # Griglia Grande (200 ms = 0.2s, 0.5 mV)
+    ax.set_xticks(np.arange(0, 10.2, 0.2))
+    ax.set_yticks(np.arange(y_min, y_max + 0.5, 0.5))
+    ax.grid(True, which='major', color='#FF8080', linestyle='-', linewidth=1.0, alpha=0.9)
+
+    # FIX ASSE X: Mostra l'etichetta di testo solo per i secondi interi (0, 1, 2... 10)
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f"{int(x)}" if x % 1 == 0 else ""))
+
+    # 4. SOVRAPPOSIZIONE MAPPA DI ATTENZIONE
+    extent = [0, 10, y_min, y_max]
+    
+    im = ax.imshow(
+        attn_1d_resized[np.newaxis, :], 
+        cmap='YlOrRd', 
+        aspect='auto', 
+        extent=extent, 
+        alpha=0.45,
+        zorder=2
+    )
+
+    # 5. TRACCIATO ECG
+    ax.plot(time_axis, ecg_lead, color='#000080', linewidth=1.4, label=f'Derivazione {lead_name}', zorder=3)
+    ax.axhline(0, color='black', linestyle='-', linewidth=0.8, alpha=0.6, zorder=3)
+
+    # Formattazione finale (Colorbar rimossa)
+    ax.set_title(f"Standard Clinical ECG & Attention Overlay | Patient ID: #{ecg_id} | Diagnosi: {labels}", fontsize=14, fontweight='bold')
+    ax.set_xlabel("Tempo (secondi) [25 mm/s]", fontsize=12)
+    ax.set_ylabel("Ampiezza (mV) [10 mm/mV]", fontsize=12)
+    ax.set_xlim(0, 10)
+    ax.set_ylim(y_min, y_max)
+    ax.legend(loc='upper right', framealpha=0.9)
+
+    plt.tight_layout()
+    plt.show()
 # ==========================================
 # 5. MAIN EXECUTION
 # ==========================================
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Plot ECG and Transformer Attention Maps")
-    parser.add_argument("--data_dir", type=str, default="data/ptb-xl", help="Directory del dataset PTB-XL")
-    parser.add_argument("--model_path", type=str, default="Weight/transformer_ecg_best.pth", help="Path dei pesi .pth salvati")
-    parser.add_argument("--ecg_id", type=int, default=None, help="ID del paziente (opzionale)")
-    parser.add_argument("--lead_idx", type=int, default=1, help="Indice derivazione (1 = DII, 6 = V1, 7 = V2, 8 = V3)")
-    
-    args = parser.parse_args()
 
     data_dir = "../data/ptb-xl"
     model_path = "../weight/transformer_ecg_best_2.pth"
-    ecg_id = 1
+    ecg_id = 10
     lead_idx = 1
     
     # Nomi delle 12 derivazioni nello standard PTB-XL
-    LEAD_NAMES = ['DI', 'DII', 'DIII', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
+    LEAD_NAMES = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
     
     # 1. Carica il modello e i pesi
     device = torch.device("cpu")
@@ -200,7 +233,7 @@ if __name__ == "__main__":
         print(f"[!] Warning: Pesi non trovati in {model_path}. Verrà usata l'inizializzazione casuale per testare la grafica.")
         
     # 2. Carica il segnale ECG di un paziente reale
-    signal_tensor, ecg_id, labels = load_ptbxl_sample(data_dir, target_class="MI", ecg_id=args.ecg_id)
+    signal_tensor, ecg_id, labels = load_ptbxl_sample(data_dir, target_class="MI")#, ecg_id=ecg_id)
     print(f"[+] Caricato record ECG ID #{ecg_id} con diagnosi: {labels}")
     
     # 3. Estrai la matrice di attenzione
@@ -209,4 +242,5 @@ if __name__ == "__main__":
     
     # 4. Genera il plot per la derivazione scelta
     lead_name = LEAD_NAMES[lead_idx]
-    plot_ecg_with_attention(signal_tensor, attn_matrix, ecg_id, labels, lead_idx=lead_idx, lead_name=lead_name)
+    #plot_ecg_with_attention(signal_tensor, attn_matrix, ecg_id, labels, lead_idx=lead_idx, lead_name=lead_name)
+    plot_ecg_clinical_standard(signal_tensor, attn_matrix, ecg_id, labels, lead_idx=lead_idx, lead_name=lead_name)
