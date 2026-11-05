@@ -164,10 +164,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    run_id = "baseline_Wander"
 
-    
     # La cartella log conterrà il timestamp per non sovrascrivere mai i vecchi grafici
-    log_dir = f"runs/Transformer_ep{args.epochs}_bs{args.batch_size}_lr{args.lr}_{2}"
+    log_dir = f"runs/Transformer_ep{args.epochs}_bs{args.batch_size}_lr{args.lr}_{run_id}"
     
     train_model(
         data_dir=args.data_dir, 
@@ -175,5 +175,5 @@ if __name__ == "__main__":
         batch_size=args.batch_size, 
         lr=args.lr,
         log_dir=log_dir,
-        run_id=2
+        run_id=run_id
     )

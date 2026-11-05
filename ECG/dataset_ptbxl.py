@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 import wfdb
 from torch.utils.data import DataLoader, Dataset
+from scipy.signal import butter, filtfilt
 
 # Mappatura delle 5 super-classi diagnostiche
 SUPERCLASSES = ['NORM', 'MI', 'STTC', 'CD', 'HYP']
@@ -34,9 +35,13 @@ class PTBXLDataset(Dataset):
         # Caricamento del segnale numerico reale via wfdb
         signal, _ = wfdb.rdsamp(full_path)
 
-        # Transposizione da [1000, 12] a [12, 1000] per le convoluzioni 1D PyTorch:
+        # Transposizione da [1000, 12] o [5000, 12] a [12, 1000] (o [12, 5000]) per le convoluzioni 1D PyTorch:
         # Forma: [Canali/Derivazioni, Timesteps]
         signal = signal.T.astype(np.float32)
+
+        # ---> RIMOZIONE DELLA BASELINE WANDER <---
+        # Appiattisce l'onda del respiro mantenendo inalterati i complessi QRS e il tratto ST
+        signal = remove_baseline_wander(signal, fs=self.sampling_rate, cutoff=0.5)
 
         # Vettore di etichette Multi-Hot per le 5 classi (es. [1, 0, 0, 1, 0])
         labels = row.label_vector.astype(np.float32)
@@ -101,7 +106,21 @@ def prepare_ptbxl_5class_data(data_dir):
 
     return train_df, val_df, test_df
 
-
+def remove_baseline_wander(ecg_signal, fs=100, cutoff=0.5):
+    """
+    Rimuove la fluttuazione della linea isoelettrica.
+    Si aspetta un array numpy di forma [12, 1000] (canali, timesteps).
+    """
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff / nyquist
+    
+    # Filtro Butterworth passa-alto del 1° ordine (delicato sulle onde cardiache)
+    b, a = butter(1, normal_cutoff, btype='high', analog=False)
+    
+    # filtfilt applica il filtro in avanti e indietro per non "spostare" temporalmente i picchi (fase zero)
+    filtered_signal = filtfilt(b, a, ecg_signal, axis=1) 
+    
+    return filtered_signal.astype(np.float32)
 # ==========================================
 # ESECUZIONE E VERIFICA DATALOADER
 # ==========================================

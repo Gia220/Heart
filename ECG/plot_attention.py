@@ -14,7 +14,7 @@ import matplotlib.ticker as ticker
 import torch.nn.functional as F
 
 from transformers import ECGTransformer
-
+from dataset_ptbxl import remove_baseline_wander
 
 def extract_attention(model, x):
     """
@@ -80,9 +80,13 @@ def load_ptbxl_sample(data_dir, target_class="MI", ecg_id=None):
     
     # Caricamento con wfdb
     signal, meta = wfdb.rdsamp(full_path)
+
+    #per baseline_wander
+    signal = signal.T.astype(np.float32)
+    signal = remove_baseline_wander(signal, fs=100, cutoff=0.5)
     
     # Trasposizione a [12, 1000] per PyTorch
-    signal_tensor = torch.tensor(signal.T, dtype=torch.float32)
+    signal_tensor = torch.tensor(signal, dtype=torch.float32)
     
     return signal_tensor, selected_row.name, selected_row['diagnostic_superclass']
 
