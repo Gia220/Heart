@@ -41,11 +41,11 @@ if __name__ == "__main__":
     ap.add_argument("--no_pos_weight", action="store_true")
     ap.add_argument("--min_recall", type=float, default=None)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--k_features", type=int, default=None, help="Numero di feature top da mantenere")
     args = ap.parse_args()
 
     lr = args.lr if args.lr is not None else (0.01 if args.optim == "sgd" else 1e-3)
-    model_name = args.name_model or (
-        f"DeepMLP_h{args.hidden_units}x{args.n_hidden}{'_emb' if args.emb else ''}")
+    model_name = args.name_model or (f"DeepMLP_h{args.hidden_units}x{args.n_hidden}_k{args.k_features if args.k_features else 'ALL'}")
 
     # Riproducibilita'
     set_seed(args.seed)
@@ -54,6 +54,26 @@ if __name__ == "__main__":
 
     # Split stratificato train/val/test, scaler fittato solo sul train
     splits = load_splits(args.csv, seed=args.seed)
+
+    #N di feature ridotto
+    if args.k_features is not None:
+        print(f"Selezione delle {args.k_features} feature più importanti in corso...")
+        from sklearn.feature_selection import SelectKBest, f_classif
+        
+        # Usa il test ANOVA (f_classif) per valutare l'importanza
+        selector = SelectKBest(score_func=f_classif, k=args.k_features)
+        
+        # FIT RIGOROSO SOLO SUL TRAIN: impara quali sono le colonne migliori
+        splits["X_train"] = selector.fit_transform(splits["X_train"], splits["y_train"])
+        
+        # APPLICA LA MASCHERA A VAL E TEST (senza guardare le loro etichette)
+        splits["X_val"] = selector.transform(splits["X_val"])
+        splits["X_test"] = selector.transform(splits["X_test"])
+        
+        # Stampa gli indici delle colonne salvate (fondamentale per la tua tesi)
+        colonne_scelte = selector.get_support(indices=True)
+        print(f"[!] Feature originarie mantenute (indici): {colonne_scelte}")
+
     train_loader, val_loader, test_loader = make_loaders(splits, batch_size=args.batch)
 
     input_dim = splits["X_train"].shape[1]
